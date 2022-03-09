@@ -137,7 +137,7 @@ build_bin() {
     "coreutils") ext=xz; ver="9.0"; url="gnu"; [ $lapi -lt 28 ] && lapi=28;;
     "cpio") ext=gz; ver="2.12"; url="gnu";;
     "cunit") ver="3.2.7"; url="https://gitlab.com/cunity/cunit";;
-    "curl") ver="curl-7_80_0"; url="https://github.com/curl/curl"; [ $lapi -lt 26 ] && lapi=26;;
+    "curl") ver="curl-7_82_0"; url="https://github.com/curl/curl"; [ $lapi -lt 26 ] && lapi=26;;
     "diffutils") ext=xz; ver="3.8"; url="gnu";;
     "ed") ext=lz; ver="1.17"; url="gnu";;
     "exa") ver="v0.10.1"; url="https://github.com/ogham/exa"; [ $lapi -lt 24 ] && lapi=24;;
@@ -390,38 +390,43 @@ build_bin() {
       ;;
     "curl")
       static=true
-      build_bin brotli
-      build_bin zstd
-      build_bin libpsl # Also builds libidn2
-      build_bin nghttp2
-      build_bin libssh2-alt # Also builds boringssl
-      build_bin quiche
-      $origstatic && build_bin c-ares || build_bin zlib # zlib.so dependency (but not required to compile - built-in to ndk) - may not be present in rom so we build it here
+      build_bin boringssl
+      # build_bin brotli
+      # build_bin zstd
+      # build_bin libpsl # Also builds libidn2
+      # build_bin nghttp2
+      # build_bin libssh2-alt # Also builds boringssl
+      # build_bin quiche
+      # $origstatic && build_bin c-ares || build_bin zlib # zlib.so dependency (but not required to compile - built-in to ndk) - may not be present in rom so we build it here
       cd $dir/$bin
       static=$origstatic
-      [ $lapi -lt 28 ] && LIBS="-lidn2 -lunistring -liconv -ldl -lm" || LIBS="-lidn2 -lunistring -ldl -lm" #27
+      # [ $lapi -lt 28 ] && LIBS="-lidn2 -lunistring -liconv -ldl -lm" || LIBS="-lidn2 -lunistring -ldl -lm" #27
       flags="--disable-shared $flags"
       $static && { LDFLAGS="$LDFLAGS -all-static"; flags="--enable-ares=$prefix $flags"; } || rm -f $prefix/lib/lib*.so $prefix/lib/lib*.so.[0-9]*
       sed -i "s/\[unreleased\]/$(date +"%Y-%m-%d")/" include/curl/curlver.h
       sed -i "s/Release-Date/Build-Date/g" src/tool_help.c
       autoreconf -fi
-      ./configure CFLAGS="$CFLAGS" CPPFLAGS="$CFLAGS -I$prefix/include -DANDROID" LDFLAGS="$LDFLAGS -L$prefix/lib" LIBS="$LIBS" \
+      ./configure CFLAGS="$CFLAGS" CPPFLAGS="$CFLAGS -I$prefix/include -DANDROID" LDFLAGS="$LDFLAGS -L$prefix/lib" \  # LIBS="$LIBS" \
         --host=$target_host --target=$target_host \
         $flags--prefix=$prefix \
         --enable-optimize \
         --enable-symbol-hiding \
         --disable-manual \
-        --enable-threaded-resolver \
-        --enable-alt-svc \
-        --enable-hsts \
         --with-ssl=$prefix \
-        --with-brotli=$prefix \
-        --with-zstd=$prefix \
         --with-ca-path=/system/etc/security/cacerts \
-        --with-nghttp2=$prefix \
-        --with-libidn2=$prefix \
-        --with-libssh2=$prefix \
-        --with-quiche=$prefix/lib/pkgconfig #27
+        --disable-ipv6 --disable-hsts --enable-https \
+        --disable-alt-svc --disable-cookies --disable-crypto-auth \
+        --disable-dict --disable-file --disable-ftp --disable-gopher \
+        --disable-imap --disable-ldap --disable-mqtt --disable-pop3 \
+        --disable-proxy --disable-rtmp --disable-rtsp --disable-scp \
+        --disable-sftp --disable-smtp --disable-telnet --disable-tftp \
+        --disable-unix-sockets --disable-verbose --disable-versioned-symbols \
+        --disable-http-auth --disable-doh --disable-dateparse \
+        --disable-netrc --disable-dnsshuffle --disable-progress-meter \
+        --enable-maintainer-mode --enable-werror --without-brotli \
+        --without-gssapi --without-libidn2 --without-libpsl \
+        --without-librtmp --without-libssh2 --without-nghttp2 --without-ntlm-auth \
+        --without-zlib --without-zstd --without-wolfssl
       [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
       sed -i -e "s/#define OS .*/#define OS \"ANDROID\"/" -e "s/#define SELECT_TYPE_RETV int/#define SELECT_TYPE_RETV ssize_t/" -e "s|/\* #undef _FILE_OFFSET_BITS \*/|#define _FILE_OFFSET_BITS 64|" lib/curl_config.h
       ;;
